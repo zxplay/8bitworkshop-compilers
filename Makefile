@@ -1,4 +1,3 @@
-
 BUILDDIR=$(CURDIR)/embuild
 OUTPUTDIR=$(CURDIR)/output
 MAKEFILESDIR=$(CURDIR)/makefiles
@@ -6,7 +5,7 @@ FSDIR=$(OUTPUTDIR)/fs
 WASMDIR=$(OUTPUTDIR)/wasm
 
 FILE_PACKAGER=python3 $(EMSDK)/upstream/emscripten/tools/file_packager.py
-ALLTARGETS=cc65 sdcc 6809tools yasm verilator zmac smlrc nesasm merlin32 batariBasic c2t makewav fastbasic dasm Silice wiz
+ALLTARGETS=sdcc zmac
 
 .PHONY: clean clobber prepare $(ALLTARGETS)
 
@@ -50,34 +49,6 @@ EMCC_FLAGS= -Os \
 	-s FORCE_FILESYSTEM=1 \
 	-s ALLOW_MEMORY_GROWTH=1 \
 	-lworkerfs.js
-
-### cc65
-
-cc65.wasm: copy.cc65
-	mkdir -p cc65/target/none
-	cd cc65 && make
-	cd $(BUILDDIR)/cc65 && emmake make cc65 CC=emcc EXE_SUFFIX= LDFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=cc65"
-	cd $(BUILDDIR)/cc65 && emmake make ca65 CC=emcc EXE_SUFFIX= LDFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=ca65"
-	cd $(BUILDDIR)/cc65 && emmake make ld65 CC=emcc EXE_SUFFIX= LDFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=ld65"
-
-$(FSDIR)/fs65-%.js:
-	cd cc65 && $(FILE_PACKAGER) $(FSDIR)/fs65-$*.data --separate-metadata --js-output=$@ \
-	--preload include asminc cfg/$** lib/$** target/$**
-
-$(BUILDDIR)/65-%/fsroot:
-	mkdir -p $@ $@/cfg $@/lib $@/target
-	cp -rp cc65/include cc65/asminc $@
-	cp -rp cc65/cfg/$** $@/cfg/
-	cp -rp cc65/lib/$** $@/lib/
-	cp -rpf cc65/target/$** $@/target/
-
-cc65.filesystems: $(FSDIR)/fs65-nes.js $(FSDIR)/fs65-apple2.js $(FSDIR)/fs65-c64.js\
-	$(FSDIR)/fs65-atari.js $(FSDIR)/fs65-none.js
-
-cc65: cc65.wasm cc65.filesystems \
-	$(BUILDDIR)/cc65/bin/cc65.wasm \
-	$(BUILDDIR)/cc65/bin/ca65.wasm \
-	$(BUILDDIR)/cc65/bin/ld65.wasm
 
 ### sdcc
 
@@ -137,205 +108,9 @@ sdcc: prepare copy.sdcc sdcc.build sdcc.asm sdcc.fsroot \
 	$(BUILDDIR)/sdcc/sdcc/bin/sdas6500.wasm
 	$(EMSDK)/upstream/bin/wasm-opt --strip -Oz $(BUILDDIR)/sdcc/sdcc/bin/sdcc.wasm -o $(WASMDIR)/sdcc.wasm
 
-### 6809tools
-
-6809tools.libs:
-	cd 6809tools/lwtools && make
-	cd 6809tools/cmoc && ./configure && make
-
-6809tools.wasm: copy.6809tools
-	cd $(BUILDDIR)/6809tools/lwtools && emmake make lwasm EMCC_CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=lwasm"
-	cd $(BUILDDIR)/6809tools/lwtools && emmake make lwlink EMCC_CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=lwlink"
-	cd $(BUILDDIR)/6809tools/cmoc && emconfigure ./configure --prefix=/share EMCC_CFLAGS="$(EMCC_FLAGS) -s DISABLE_EXCEPTION_CATCHING=0"
-	cd $(BUILDDIR)/6809tools/cmoc/src && emmake make cmoc EMCC_CFLAGS="$(EMCC_FLAGS) -s DISABLE_EXCEPTION_CATCHING=0 -s EXPORT_NAME=cmoc"
-
-6809tools: 6809tools.libs 6809tools.wasm \
-$(BUILDDIR)/6809tools/lwtools/lwasm/lwasm.wasm \
-$(BUILDDIR)/6809tools/lwtools/lwlink/lwlink.wasm \
-$(BUILDDIR)/6809tools/cmoc/src/cmoc.wasm
-
-### yasm
-
-yasm.libs:
-	cd yasm && sh autogen.sh && ./configure && make
-
-yasm.wasm: copy.yasm
-	cd $(BUILDDIR)/yasm && sh autogen.sh && emconfigure ./configure --prefix=/share
-	cd yasm && cp --preserve=mode genperf* gp-* re2c* genmacro* genversion* genstring* genmodule* $(BUILDDIR)/yasm/
-	cd $(BUILDDIR)/yasm && emmake make yasm EMCC_CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=yasm"
-
-yasm: yasm.libs yasm.wasm $(BUILDDIR)/yasm/yasm.wasm
-
-### verilator
-
-verilator.libs:
-	cd verilator && autoconf && ./configure && make -j 4
-
-verilator.update:
-	cd $(BUILDDIR)/verilator/src && emmake make -j 4 ../bin/verilator_bin EMCC_CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=verilator_bin -s INITIAL_MEMORY=67108864 -s ALLOW_MEMORY_GROWTH=1"
-
-verilator.prepare: copy.verilator
-	cd $(BUILDDIR)/verilator && autoconf && emconfigure ./configure --prefix=/share
-	cp /usr/include/FlexLexer.h $(BUILDDIR)/verilator/include
-	#sed -i 's/-lstdc++/#-lstdc++/g' $(BUILDDIR)/verilator/src/Makefile_obj
-
-verilator: verilator.libs verilator.prepare verilator.update $(BUILDDIR)/verilator/bin/verilator_bin.wasm
-
 ### zmac
 
 zmac.wasm: copy.zmac
 	cd $(BUILDDIR)/zmac && emmake make EMCC_CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=zmac"
 
 zmac: zmac.wasm $(BUILDDIR)/zmac/zmac.wasm
-
-### smlrc
-
-# requires nasm
-smlrc.libs:
-	cd SmallerC && make
-
-smlrc.wasm: copy.SmallerC
-	sed -i 's/^CC = /#CC =/g' $(BUILDDIR)/SmallerC/common.mk 
-	cd $(BUILDDIR)/SmallerC && emmake make smlrc EMCC_CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=smlrc"
-
-smlrc.fsroot:
-	rm -fr $(BUILDDIR)/smlrc/fsroot
-	mkdir -p $(BUILDDIR)/smlrc/fsroot
-	ln -s $(CURDIR)/SmallerC/v0100/include $(BUILDDIR)/smlrc/fsroot/include
-	ln -s $(CURDIR)/SmallerC/v0100/lib $(BUILDDIR)/smlrc/fsroot/lib
-	rm -f $(BUILDDIR)/smlrc/fsroot/lib/lc?.a # remove non-DOS libs
-
-smlrc: smlrc.libs smlrc.wasm $(BUILDDIR)/SmallerC/smlrc.wasm smlrc.fsroot $(FSDIR)/fssmlrc.js
-
-### nesasm
-
-nesasm.wasm: copy.nesasm
-	sed -i 's/^CC/#CC/g' $(BUILDDIR)/nesasm/source/Makefile
-	cd $(BUILDDIR)/nesasm/source && emmake make EMCC_CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=nesasm"
-
-nesasm: nesasm.wasm $(BUILDDIR)/nesasm/nesasm.wasm
-
-### merlin32
-
-merlin32.wasm: copy.merlin32
-	#sed -i 's/^CC/#CC/g' $(BUILDDIR)/merlin32/Source/Makefile
-	cd $(BUILDDIR)/merlin32/Source && emmake make EMCC_CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=merlin32"
-
-merlin32: merlin32.wasm $(BUILDDIR)/merlin32/Source/merlin32.wasm
-
-### batariBasic
-
-batariBasic.wasm: copy.batariBasic
-	cd $(BUILDDIR)/batariBasic/source && emmake make EMCC_CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=batariBasic"
-
-batariBasic: batariBasic.wasm $(BUILDDIR)/batariBasic/source/2600basic.wasm
-
-### c2t
-
-c2t.wasm: copy.c2t
-	sed -i 's/gcc /emcc $(EMCC_FLAGS) /g' $(BUILDDIR)/c2t/Makefile
-	cd $(BUILDDIR)/c2t && emmake make EMCC_CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=c2t -s WASM=0"
-
-c2t: c2t.wasm $(BUILDDIR)/c2t/bin/c2t.js
-
-### makewav
-### TODO: asm.js only
-
-makewav.wasm: copy.makewav
-	cd $(BUILDDIR)/makewav && emmake make makewav CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=makewav -s WASM=0"
-
-makewav: makewav.wasm $(BUILDDIR)/makewav/makewav.js
-
-### liblzg
-### TODO
-
-### fastbasic
-
-fastbasic.wasm: copy.fastbasic
-	sed -i 's/^CXX=/#CXX=/g' $(BUILDDIR)/fastbasic/Makefile
-	cd $(BUILDDIR)/fastbasic && make build build/gen build/gen/int build/obj/cxx-int build/gen/csynt
-	cd $(BUILDDIR)/fastbasic && emmake make build/compiler/fastbasic-int build/compiler/fastbasic-fp \
-		OPTFLAGS="-O3 $(EMCC_FLAGS) -s EXPORT_NAME=fastbasic"
-
-fastbasic.libs:
-	cd fastbasic && make ASMFLAGS="-I cc65/asminc -D NO_SMCODE"
-
-fastbasic: fastbasic.libs fastbasic.wasm \
-	$(BUILDDIR)/fastbasic/build/bin/fastbasic-int.wasm \
-	$(BUILDDIR)/fastbasic/build/bin/fastbasic-fp.wasm
-
-### DASM
-
-dasm.wasm: copy.dasm
-	cd $(BUILDDIR)/dasm/src && emmake make dasm CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=dasm"
-
-dasm: dasm.wasm $(BUILDDIR)/dasm/src/dasm.wasm
-
-### naken_asm
-
-naken_asm.wasm: copy.naken_asm
-	cd $(BUILDDIR)/naken_asm && emconfigure ./configure
-	sed -i 's/ -DREADLINE/ /g' $(BUILDDIR)/naken_asm/config.mak
-	sed -i 's/ -lreadline/ /g' $(BUILDDIR)/naken_asm/config.mak
-	sed -i 's|$$(CC) -o ../naken_util|echo |g' $(BUILDDIR)/naken_asm/build/Makefile
-	cd $(BUILDDIR)/naken_asm && emmake make all CC=emcc EMCC_CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=naken_asm"
-
-naken_asm: naken_asm.wasm $(BUILDDIR)/naken_asm/naken_asm.wasm
-
-### Silice
-
-# https://sourceforge.net/projects/libuuid/files/latest/download
-# emconfigure ./configure --prefix=/home/hugg/emsdk/upstream/emscripten/system
-# emmake make install
-
-Silice.wasm: copy.Silice
-	cp -rp Silice/src/libs/* $(BUILDDIR)/Silice/src/libs/
-	mkdir -p $(BUILDDIR)/Silice/BUILD/build-silice
-	sed -i 's/4.2.1/0/g' $(BUILDDIR)/Silice/antlr/antlr4-cpp-runtime-4.7.2-source/CMakeLists.txt
-	cd $(BUILDDIR)/Silice/BUILD/build-silice && emmake cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ../..
-	cd $(BUILDDIR)/Silice/BUILD/build-silice && emmake make -j8 EMCC_CFLAGS="$(EMCC_FLAGS) -s DISABLE_EXCEPTION_CATCHING=0 -s EXPORT_NAME=silice"
-
-Silice.fsroot:
-	rm -fr $(BUILDDIR)/Silice/fsroot
-	mkdir -p $(BUILDDIR)/Silice/fsroot
-	ln -s $(CURDIR)/Silice/frameworks $(BUILDDIR)/Silice/fsroot
-
-Silice: Silice.wasm $(BUILDDIR)/Silice/BUILD/build-silice/silice.wasm Silice.fsroot $(FSDIR)/fsSilice.js
-
-### wiz
-
-wiz.wasm: copy.wiz
-	sed -i 's/__EMSCRIPTEN__/__XXXEMSRC__/g' $(BUILDDIR)/wiz/src/wiz/wiz.cpp
-	sed -i 's/-fno-rtti//g' $(BUILDDIR)/wiz/Makefile
-	sed -i 's/ -lm --bind / -lm /g' $(BUILDDIR)/wiz/Makefile
-	sed -i 's/ -s NO_FILESYSTEM=1 / /g' $(BUILDDIR)/wiz/Makefile
-	sed -i 's/ -s WASM=0 / /g' $(BUILDDIR)/wiz/Makefile
-	cd $(BUILDDIR)/wiz && emmake make CC=emcc LXXFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=wiz"
-
-wiz.fsroot:
-	rm -fr $(BUILDDIR)/wiz/fsroot
-	mkdir -p $(BUILDDIR)/wiz/fsroot
-	ln -s $(CURDIR)/wiz/common $(BUILDDIR)/wiz/fsroot
-
-wiz: wiz.wasm $(BUILDDIR)/wiz/bin/wiz.wasm wiz.fsroot $(FSDIR)/fswiz.js
-
-### armips
-
-armips.wasm: copy.armips
-	cp -rp armips/ext/filesystem $(BUILDDIR)/armips/ext
-	sed -i 's/int result = wmain(argc,wargv);/int result=99; try { result = wmain(argc,wargv); } catch (const std::exception \&exc) { std::cerr << "FATAL EXCEPTION: " << exc.what() << std::endl; }/g' $(BUILDDIR)/armips/Main/main.cpp
-	sed -i 's/Global.multiThreading = true;/Global.multiThreading = false;/g' $(BUILDDIR)/armips/Core/Assembler.cpp
-	cd $(BUILDDIR)/armips && mkdir -p build
-	cd $(BUILDDIR)/armips/build && emmake cmake -DCMAKE_BUILD_TYPE=Release ..
-	cd $(BUILDDIR)/armips/build && emmake make -j2 EMCC_CFLAGS="$(EMCC_FLAGS) -s DISABLE_EXCEPTION_CATCHING=0 -s EXPORT_NAME=armips -DGHC_OS_LINUX -DGHC_OS_DETECTED"
-
-armips: armips.wasm $(BUILDDIR)/armips/build/armips.wasm
-
-## vasm
-
-vasm.wasm: copy.vasm
-	sed -i 's/gcc/emcc /g' $(BUILDDIR)/vasm/Makefile
-	cd $(BUILDDIR)/vasm && emmake make CPU=arm SYNTAX=std EMCC_CFLAGS="$(EMCC_FLAGS) -s EXPORT_NAME=vasm"
-
-vasm: vasm.wasm $(BUILDDIR)/vasm/vasmarm_std.wasm
-
