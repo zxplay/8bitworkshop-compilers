@@ -1,64 +1,6 @@
-[submodule "cc65"]
-	path = cc65
-	url = git@github.com:cc65/cc65.git
-[submodule "neslib"]
-	path = neslib
-	url = git@github.com:sehugg/neslib.git
 [submodule "sdcc-m6502"]
 	path = sdcc
-	url = https://github.com/sehugg/sdcc-m6502
-[submodule "6809tools"]
-	path = 6809tools
-	url = https://github.com/sehugg/6809tools
-[submodule "yasm"]
-	path = yasm
-	url = https://github.com/yasm/yasm
-[submodule "verilator"]
-	path = verilator
-	url = https://github.com/sehugg/verilator
+	url = https://github.com/zxplay/emscripten-sdcc
 [submodule "zmac"]
 	path = zmac
-	url = git@github.com:sehugg/zmac.git
-
-[submodule "SmallerC"]
-	path = SmallerC
-	url = https://github.com/alexfru/SmallerC
-[submodule "nesasm"]
-	path = nesasm
-	url = https://github.com/camsaul/nesasm
-[submodule "merlin32"]
-	path = merlin32
-	url = ./merlin32
-[submodule "batariBasic"]
-	path = batariBasic
-	url = https://github.com/sehugg/batariBasic
-[submodule "c2t"]
-	path = c2t
-	url = https://github.com/datajerk/c2t
-[submodule "liblzg"]
-	path = liblzg
-	url = https://github.com/mbitsnbites/liblzg
-[submodule "makewav"]
-	path = makewav
-	url = https://github.com/sehugg/makewav
-[submodule "fastbasic"]
-	path = fastbasic
-	url = https://github.com/dmsc/fastbasic
-[submodule "dasm"]
-	path = dasm
-	url = https://github.com/sehugg/dasm
-[submodule "naken_asm"]
-	path = naken_asm
-	url = https://github.com/mikeakohn/naken_asm
-[submodule "Silice"]
-	path = Silice
-	url = https://github.com/sehugg/Silice
-[submodule "wiz"]
-	path = wiz
-	url = ./wiz
-[submodule "armips"]
-	path = armips
-	url = https://github.com/Kingcom/armips
-[submodule "vasm"]
-	path = vasm
-	url = https://github.com/StarWolf3000/vasm-mirror
+	url = https://github.com/zxplay/emscripten-zmac
