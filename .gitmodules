@@ -1,6 +1,6 @@
-[submodule "sdcc-m6502"]
+[submodule "sdcc"]
 	path = sdcc
-	url = https://github.com/zxplay/emscripten-sdcc
+	url = https://github.com/zxplay/8bitworkshop-sdcc
 [submodule "zmac"]
 	path = zmac
-	url = https://github.com/zxplay/emscripten-zmac
+	url = https://github.com/zxplay/8bitworkshop-zmac
